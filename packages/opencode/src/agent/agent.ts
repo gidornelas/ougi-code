@@ -135,7 +135,7 @@ export const layer = Layer.effect(
                 },
                 edit: {
                   "*": "deny",
-                  [path.join(".opencode", "plans", "*.md")]: "allow",
+                  [path.join(".ougi", "plans", "*.md")]: "allow",
                   [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
                 },
               }),
@@ -278,11 +278,11 @@ export const layer = Layer.effect(
           )
         }
 
-        const get = Effect.fnUntraced(function* (agent: string) {
+        const get = Effect.fn("Agent.state.get")(function* (agent: string) {
           return agents[agent]
         })
 
-        const list = Effect.fnUntraced(function* () {
+        const list = Effect.fn("Agent.state.list")(function* () {
           const cfg = yield* config.get()
           return pipe(
             agents,
@@ -294,7 +294,7 @@ export const layer = Layer.effect(
           )
         })
 
-        const defaultAgent = Effect.fnUntraced(function* () {
+        const defaultAgent = Effect.fn("Agent.state.defaultAgent")(function* () {
           const c = yield* config.get()
           if (c.default_agent) {
             const agent = agents[c.default_agent]

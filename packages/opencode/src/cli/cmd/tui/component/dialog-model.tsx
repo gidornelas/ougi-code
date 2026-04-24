@@ -9,6 +9,12 @@ import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
 
+function providerDisplayName(provider: { id: string; name: string }) {
+  if (provider.id === "opencode") return "Ougi Connect"
+  if (provider.id === "opencode-go") return "OpenCode Go"
+  return provider.name
+}
+
 export function useConnected() {
   const sync = useSync()
   return createMemo(() =>
@@ -46,7 +52,7 @@ export function DialogModel(props: { providerID?: string }) {
             key: item,
             value: { providerID: provider.id, modelID: model.id },
             title: model.name ?? item.modelID,
-            description: provider.name,
+            description: providerDisplayName(provider),
             category,
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
             footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
@@ -78,13 +84,13 @@ export function DialogModel(props: { providerID?: string }) {
           entries(),
           filter(([_, info]) => info.status !== "deprecated"),
           filter(([_, info]) => (props.providerID ? info.providerID === props.providerID : true)),
-          map(([model, info]) => ({
-            value: { providerID: provider.id, modelID: model },
-            title: info.name ?? model,
+            map(([model, info]) => ({
+              value: { providerID: provider.id, modelID: model },
+              title: info.name ?? model,
             description: favorites.some((item) => item.providerID === provider.id && item.modelID === model)
               ? "(Favorite)"
               : undefined,
-            category: connected() ? provider.name : undefined,
+              category: connected() ? providerDisplayName(provider) : undefined,
             disabled: provider.id === "opencode" && model.includes("-nano"),
             footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
             onSelect() {
@@ -135,7 +141,7 @@ export function DialogModel(props: { providerID?: string }) {
   const title = createMemo(() => {
     const value = provider()
     if (!value) return "Select model"
-    return value.name
+    return providerDisplayName(value)
   })
 
   function onSelect(providerID: string, modelID: string) {

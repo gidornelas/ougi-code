@@ -58,7 +58,7 @@ const args = hideBin(process.argv)
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith("ougi ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text)
     return
@@ -68,7 +68,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("ougi")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -105,17 +105,19 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.OUGI = "1"
+    process.env.OUGI_PID = String(process.pid)
     process.env.OPENCODE = "1"
     process.env.OPENCODE_PID = String(process.pid)
 
-    Log.Default.info("opencode", {
+    Log.Default.info("ougi", {
       version: InstallationVersion,
       args: process.argv.slice(2),
       process_role: processMetadata.processRole,
       run_id: processMetadata.runID,
     })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    const marker = path.join(Global.Path.data, "ougi.db")
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
@@ -219,15 +221,15 @@ try {
     })
   }
 
-  if (e instanceof ResolveMessage) {
+  if (e && typeof e === "object" && "code" in e && "specifier" in e) {
     Object.assign(data, {
-      name: e.name,
-      message: e.message,
-      code: e.code,
-      specifier: e.specifier,
-      referrer: e.referrer,
-      position: e.position,
-      importKind: e.importKind,
+      name: (e as any).name,
+      message: (e as any).message,
+      code: (e as any).code,
+      specifier: (e as any).specifier,
+      referrer: (e as any).referrer,
+      position: (e as any).position,
+      importKind: (e as any).importKind,
     })
   }
   Log.Default.error("fatal", data)

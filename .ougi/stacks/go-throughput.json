@@ -1,0 +1,13 @@
+{
+  "name": "go-throughput",
+  "description": "Maximum throughput with Qwen planning and Kimi review",
+  "model": "opencode-go/kimi-k2.6",
+  "small_model": "opencode-go/qwen3.5-plus",
+  "agents": {
+    "build": "opencode-go/kimi-k2.6",
+    "plan": "opencode-go/qwen3.6-plus",
+    "ux-engineer": "opencode-go/kimi-k2.6",
+    "reviewer": "opencode-go/kimi-k2.6",
+    "release": "opencode-go/qwen3.6-plus"
+  }
+}

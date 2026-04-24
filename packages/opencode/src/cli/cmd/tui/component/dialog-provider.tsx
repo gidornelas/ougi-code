@@ -14,6 +14,7 @@ import { useKeyboard } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import { Branding } from "../branding"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -22,6 +23,12 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   "github-copilot": 3,
   anthropic: 4,
   google: 5,
+}
+
+function providerDisplayName(provider: { id: string; name: string }) {
+  if (provider.id === "opencode") return `${Branding.product.shortName} Connect`
+  if (provider.id === "opencode-go") return "OpenCode Go"
+  return provider.name
 }
 
 export function createDialogProviderOptions() {
@@ -39,13 +46,13 @@ export function createDialogProviderOptions() {
         const connected = sync.data.provider_next.connected.includes(provider.id)
 
         return {
-          title: provider.name,
+          title: providerDisplayName(provider),
           value: provider.id,
           description: {
-            opencode: "(Recommended)",
+            opencode: "(Recommended for this fork)",
             anthropic: "(API key)",
             openai: "(ChatGPT Plus/Pro or API key)",
-            "opencode-go": "Low cost subscription for everyone",
+            "opencode-go": "OpenCode Go monthly plan",
           }[provider.id],
           footer: consoleManaged ? sync.data.console_state.activeOrgName : undefined,
           category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
@@ -145,7 +152,7 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  return <DialogSelect title="Connect a model provider" options={options()} />
 }
 
 interface AutoMethodProps {
@@ -270,22 +277,23 @@ function ApiMethod(props: ApiMethodProps) {
           opencode: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
-                key.
+                {Branding.product.shortName} Connect gives you access to the fork's recommended hosted models with a
+                single API key.
               </text>
               <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key
+                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/auth</span> to create a compatible key
               </text>
             </box>
           ),
           "opencode-go": (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                OpenCode Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
+                OpenCode Go is the upstream-compatible monthly plan for low-cost access to popular
+                open coding models.
               </text>
               <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> and enable OpenCode Go
+                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> and enable{" "}
+                OpenCode Go
               </text>
             </box>
           ),

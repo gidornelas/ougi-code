@@ -1,0 +1,13 @@
+{
+  "name": "go-minimal",
+  "description": "Minimal cost. Qwen for plan and review. Kimi for build only.",
+  "model": "opencode-go/qwen3.5-plus",
+  "small_model": "opencode-go/qwen3.5-plus",
+  "agents": {
+    "build": "opencode-go/kimi-k2.6",
+    "plan": "opencode-go/qwen3.5-plus",
+    "ux-engineer": "opencode-go/qwen3.5-plus",
+    "reviewer": "opencode-go/qwen3.5-plus",
+    "release": "opencode-go/qwen3.5-plus"
+  }
+}

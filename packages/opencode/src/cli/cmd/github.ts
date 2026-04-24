@@ -140,7 +140,7 @@ type IssueQueryResponse = {
 
 const AGENT_USERNAME = "opencode-agent[bot]"
 const AGENT_REACTION = "eyes"
-const WORKFLOW_FILE = ".github/workflows/opencode.yml"
+const WORKFLOW_FILE = ".github/workflows/ougi.yml"
 
 // Event categories for routing
 // USER_EVENTS: triggered by user actions, have actor/issueId, support reactions/comments
@@ -194,21 +194,21 @@ export function formatPromptTooLargeError(files: { filename: string; content: st
 
 export const GithubCommand = cmd({
   command: "github",
-  describe: "manage GitHub agent",
+  describe: "manage GitHub automation",
   builder: (yargs) => yargs.command(GithubInstallCommand).command(GithubRunCommand).demandCommand(),
   async handler() {},
 })
 
 export const GithubInstallCommand = cmd({
   command: "install",
-  describe: "install the GitHub agent",
+  describe: "install GitHub automation",
   async handler() {
     await Instance.provide({
       directory: process.cwd(),
       async fn() {
         {
           UI.empty()
-          prompts.intro("Install GitHub agent")
+          prompts.intro("Install GitHub automation")
           const app = await getAppInfo()
           await installGitHubApp()
 
@@ -245,9 +245,9 @@ export const GithubInstallCommand = cmd({
                 `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
                 step2,
                 "",
-                "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
+                "    3. Go to a GitHub issue and comment `/ougi summarize` to see the automation in action",
                 "",
-                "   Learn more about the GitHub agent - https://opencode.ai/docs/github/#usage-examples",
+                "    Compatibility aliases: `/oc` and `/opencode` still work.",
               ].join("\n"),
             )
           }
@@ -383,7 +383,7 @@ export const GithubInstallCommand = cmd({
 
             await Filesystem.write(
               path.join(app.root, WORKFLOW_FILE),
-              `name: opencode
+              `name: ougi
 
 on:
   issue_comment:
@@ -392,8 +392,10 @@ on:
     types: [created]
 
 jobs:
-  opencode:
+  ougi:
     if: |
+      contains(github.event.comment.body, ' /ougi') ||
+      startsWith(github.event.comment.body, '/ougi') ||
       contains(github.event.comment.body, ' /oc') ||
       startsWith(github.event.comment.body, '/oc') ||
       contains(github.event.comment.body, ' /opencode') ||
@@ -410,7 +412,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run opencode
+      - name: Run Ougi
+        # Upstream GitHub action retained for compatibility while the forked automation is being finalized.
         uses: anomalyco/opencode/github@latest${envStr}
         with:
           model: ${provider}/${model}`,
@@ -426,7 +429,7 @@ jobs:
 
 export const GithubRunCommand = cmd({
   command: "run",
-  describe: "run the GitHub agent",
+  describe: "run GitHub automation",
   builder: (yargs) =>
     yargs
       .option("event", {
@@ -550,7 +553,7 @@ export const GithubRunCommand = cmd({
           await addReaction(commentType)
         }
 
-        // Setup opencode session
+        // Setup Ougi session
         const repoData = await fetchRepo()
         session = await AppRuntime.runPromise(
           Session.Service.use((svc) =>
@@ -572,7 +575,7 @@ export const GithubRunCommand = cmd({
           await AppRuntime.runPromise(SessionShare.Service.use((svc) => svc.share(session.id)))
           return session.id.slice(-8)
         })()
-        console.log("opencode session", session.id)
+        console.log("ougi session", session.id)
 
         // Handle event types:
         // REPO_EVENTS (schedule, workflow_dispatch): no issue/PR context, output to logs/PR only
@@ -794,7 +797,7 @@ export const GithubRunCommand = cmd({
         }
 
         const reviewContext = getReviewCommentContext()
-        const mentions = (process.env["MENTIONS"] || "/opencode,/oc")
+        const mentions = (process.env["MENTIONS"] || "/ougi,/opencode,/oc")
           .split(",")
           .map((m) => m.trim().toLowerCase())
           .filter(Boolean)
@@ -940,7 +943,7 @@ export const GithubRunCommand = cmd({
       }
 
       async function chat(message: string, files: PromptFiles = []) {
-        console.log("Sending message to opencode...")
+        console.log("Sending message to ougi...")
 
         return AppRuntime.runPromise(
           Effect.gen(function* () {
@@ -1407,7 +1410,7 @@ export const GithubRunCommand = cmd({
 
           return `<a href="${shareBaseUrl}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/opencode-share/${title64}.png?model=${providerID}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
         })()
-        const shareUrl = shareId ? `[opencode session](${shareBaseUrl}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
+        const shareUrl = shareId ? `[ougi session](${shareBaseUrl}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
         return `\n\n${image}${shareUrl}[github run](${runUrl})`
       }
 
@@ -1468,7 +1471,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
         return [
           "<github_action_context>",
           "You are running as a GitHub Action. Important:",
-          "- Git push and PR creation are handled AUTOMATICALLY by the opencode infrastructure after your response",
+          "- Git push and PR creation are handled AUTOMATICALLY by the Ougi GitHub automation after your response",
           "- Do NOT include warnings or disclaimers about GitHub tokens, workflow permissions, or PR creation capabilities",
           "- Do NOT suggest manual steps for creating PRs or pushing code - this happens automatically",
           "- Focus only on the code changes and your analysis/response",
@@ -1606,7 +1609,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
         return [
           "<github_action_context>",
           "You are running as a GitHub Action. Important:",
-          "- Git push and PR creation are handled AUTOMATICALLY by the opencode infrastructure after your response",
+          "- Git push and PR creation are handled AUTOMATICALLY by the Ougi GitHub automation after your response",
           "- Do NOT include warnings or disclaimers about GitHub tokens, workflow permissions, or PR creation capabilities",
           "- Do NOT suggest manual steps for creating PRs or pushing code - this happens automatically",
           "- Focus only on the code changes and your analysis/response",

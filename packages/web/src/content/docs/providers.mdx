@@ -1,30 +1,30 @@
 ---
 title: Providers
-description: Using any LLM provider in OpenCode.
+description: Using any LLM provider in Ougi Code.
 ---
 
 import config from "../../../config.mjs"
 export const console = config.console
 
-OpenCode uses the [AI SDK](https://ai-sdk.dev/) and [Models.dev](https://models.dev) to support **75+ LLM providers** and it supports running local models.
+Ougi uses the [AI SDK](https://ai-sdk.dev/) and [Models.dev](https://models.dev) to support **75+ LLM providers**, including local models.
 
 To add a provider you need to:
 
 1. Add the API keys for the provider using the `/connect` command.
-2. Configure the provider in your OpenCode config.
+2. Configure the provider in your Ougi config.
 
 ---
 
 ### Credentials
 
 When you add a provider's API keys with the `/connect` command, they are stored
-in `~/.local/share/opencode/auth.json`.
+in `~/.local/share/ougi/auth.json`.
 
 ---
 
 ### Config
 
-You can customize the providers through the `provider` section in your OpenCode
+You can customize the providers through the `provider` section in your Ougi
 config.
 
 ---
@@ -33,7 +33,7 @@ config.
 
 You can customize the base URL for any provider by setting the `baseURL` option. This is useful when using proxy services or custom endpoints.
 
-```json title="opencode.json" {6}
+```json title="ougi.json" {6}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -48,16 +48,15 @@ You can customize the base URL for any provider by setting the `baseURL` option.
 
 ---
 
-## OpenCode Zen
+## Ougi Connect
 
-OpenCode Zen is a list of models provided by the OpenCode team that have been
-tested and verified to work well with OpenCode. [Learn more](/docs/zen).
+Ougi Connect is the fork's recommended hosted entry point. It uses the upstream-compatible provider service and gives you a quick way to get started with tested coding models. [Learn more](/docs/zen).
 
 :::tip
-If you are new, we recommend starting with OpenCode Zen.
+If you are new, we recommend starting with Ougi Connect.
 :::
 
-1. Run the `/connect` command in the TUI, select `OpenCode Zen`, and head to [opencode.ai/auth](https://opencode.ai/zen).
+1. Run the `/connect` command in the TUI, select `Ougi Connect`, and head to [opencode.ai/auth](https://opencode.ai/auth).
 
    ```txt
    /connect
@@ -80,16 +79,15 @@ If you are new, we recommend starting with OpenCode Zen.
    /models
    ```
 
-It works like any other provider in OpenCode and is completely optional to use.
+It works like any other provider in Ougi and is completely optional to use.
 
 ---
 
 ## OpenCode Go
 
-OpenCode Go is a low cost subscription plan that provides reliable access to popular open coding models provided by the OpenCode team that have been
-tested and verified to work well with OpenCode.
+OpenCode Go is the upstream-compatible low-cost subscription plan surfaced by this fork for reliable access to popular open coding models.
 
-1. Run the `/connect` command in the TUI, select `OpenCode Go`, and head to [opencode.ai/auth](https://opencode.ai/zen).
+1. Run the `/connect` command in the TUI, select `OpenCode Go`, and head to [opencode.ai/zen](https://opencode.ai/zen).
 
    ```txt
    /connect
@@ -112,7 +110,7 @@ tested and verified to work well with OpenCode.
    /models
    ```
 
-It works like any other provider in OpenCode and is completely optional to use.
+It works like any other provider in Ougi and is completely optional to use.
 
 ---
 

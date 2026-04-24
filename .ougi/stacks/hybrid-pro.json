@@ -1,0 +1,17 @@
+{
+  "name": "hybrid-pro",
+  "description": "Professional hybrid with external review lanes (Codex + GPT-5.4)",
+  "model": "opencode-go/kimi-k2.6",
+  "small_model": "opencode-go/qwen3.5-plus",
+  "agents": {
+    "build": "opencode-go/kimi-k2.6",
+    "plan": "opencode-go/glm-5.1",
+    "ux-engineer": "opencode-go/kimi-k2.6",
+    "reviewer": "opencode-go/minimax-m2.7",
+    "release": "opencode-go/glm-5.1"
+  },
+  "external_lanes": {
+    "codex": "Premium review, audit, second opinion",
+    "gpt-5.4": "Architecture, trade-offs, broad technical decisions"
+  }
+}

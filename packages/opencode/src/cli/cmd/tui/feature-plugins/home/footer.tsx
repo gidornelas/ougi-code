@@ -1,6 +1,7 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, Match, Show, Switch } from "solid-js"
 import { Global } from "@/global"
+import { Branding } from "../../branding"
 
 const id = "internal:home-footer"
 

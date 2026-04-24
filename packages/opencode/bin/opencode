@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-const childProcess = require("child_process")
-const fs = require("fs")
-const path = require("path")
-const os = require("os")
+import childProcess from "node:child_process"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 function run(target) {
   const result = childProcess.spawnSync(target, process.argv.slice(2), {
@@ -17,18 +18,18 @@ function run(target) {
   process.exit(code)
 }
 
-const envPath = process.env.OPENCODE_BIN_PATH
+const envPath = process.env.OUGI_BIN_PATH || process.env.OPENCODE_BIN_PATH
 if (envPath) {
   run(envPath)
 }
 
-const scriptPath = fs.realpathSync(__filename)
+const scriptPath = fs.realpathSync(fileURLToPath(import.meta.url))
 const scriptDir = path.dirname(scriptPath)
 
-//
-const cached = path.join(scriptDir, ".opencode")
-if (fs.existsSync(cached)) {
-  run(cached)
+for (const cached of [path.join(scriptDir, ".ougi"), path.join(scriptDir, ".opencode")]) {
+  if (fs.existsSync(cached)) {
+    run(cached)
+  }
 }
 
 const platformMap = {
@@ -50,8 +51,9 @@ let arch = archMap[os.arch()]
 if (!arch) {
   arch = os.arch()
 }
-const base = "opencode-" + platform + "-" + arch
-const binary = platform === "windows" ? "opencode.exe" : "opencode"
+const ougiBase = "ougi-" + platform + "-" + arch
+const opencodeBase = "opencode-" + platform + "-" + arch
+const binary = platform === "windows" ? "ougi.exe" : "ougi"
 
 function supportsAvx2() {
   if (arch !== "x64") return false
@@ -103,7 +105,7 @@ function supportsAvx2() {
   return false
 }
 
-const names = (() => {
+function packageNames(base) {
   const avx2 = supportsAvx2()
   const baseline = arch === "x64" && !avx2
 
@@ -146,7 +148,9 @@ const names = (() => {
     return [base, `${base}-baseline`]
   }
   return [base]
-})()
+}
+
+const names = [...packageNames(ougiBase), ...packageNames(opencodeBase)]
 
 function findBinary(startDir) {
   let current = startDir
@@ -169,9 +173,9 @@ function findBinary(startDir) {
 const resolved = findBinary(scriptDir)
 if (!resolved) {
   console.error(
-    "It seems that your package manager failed to install the right version of the opencode CLI for your platform. You can try manually installing " +
-      names.map((n) => `\"${n}\"`).join(" or ") +
-      " package",
+    "Legacy opencode launcher could not find a compatible Ougi binary. Try installing " +
+      names.map((name) => `"${name}"`).join(" or ") +
+      ".",
   )
   process.exit(1)
 }

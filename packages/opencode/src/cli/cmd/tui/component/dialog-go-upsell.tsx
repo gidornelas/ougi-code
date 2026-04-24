@@ -7,6 +7,7 @@ import { useDialog, type DialogContext } from "@tui/ui/dialog"
 import { Link } from "@tui/ui/link"
 import { GoLogo } from "./logo"
 import { BgPulse, type BgPulseMask } from "./bg-pulse"
+import { Branding } from "../branding"
 
 const GO_URL = "https://opencode.ai/go"
 const PAD_X = 3
@@ -100,7 +101,7 @@ export function DialogGoUpsell(props: DialogGoUpsellProps) {
           <box flexDirection="row">
             <text fg={theme.textMuted}>Subscribe to </text>
             <text attributes={TextAttributes.BOLD} fg={theme.textMuted}>
-              OpenCode Go
+              {Branding.product.shortName} Go
             </text>
             <text fg={theme.textMuted}> for reliable access to the</text>
           </box>

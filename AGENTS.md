@@ -4,6 +4,14 @@
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
 
+## Ougi Layer
+
+- The custom Ougi workspace layer lives in `.ougi/`.
+- Custom commands are in `.ougi/commands`, agents in `.ougi/agents`, skills in `.ougi/skills`, prompts in `.ougi/prompts`, and stack presets in `.ougi/stacks`.
+- Repo-level Ougi runtime config is `ougi.json`.
+- Stack state is stored in `.ougi/active-stack`; compact-language mode marker is `.ougi/mode`.
+- When editing this custom layer, keep paths and docs on `.ougi`/`ougi.json`; do not reintroduce `.opencode` unless you are intentionally documenting legacy compatibility.
+
 ## Style Guide
 
 ### General Principles

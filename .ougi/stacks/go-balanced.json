@@ -1,0 +1,13 @@
+{
+  "name": "go-balanced",
+  "description": "Balanced quality and speed with GLM planning and minimax review",
+  "model": "opencode-go/kimi-k2.6",
+  "small_model": "opencode-go/qwen3.5-plus",
+  "agents": {
+    "build": "opencode-go/kimi-k2.6",
+    "plan": "opencode-go/glm-5.1",
+    "ux-engineer": "opencode-go/kimi-k2.6",
+    "reviewer": "opencode-go/minimax-m2.7",
+    "release": "opencode-go/glm-5.1"
+  }
+}

@@ -9,6 +9,13 @@ import { JsonError } from "./error"
 import * as Effect from "effect/Effect"
 import { AppFileSystem } from "@opencode-ai/shared/filesystem"
 
+export const LOCAL_CONFIG_DIRS = [".ougi", ".opencode"] as const
+
+function names(name: string) {
+  if (name !== "opencode") return [`${name}.jsonc`, `${name}.json`]
+  return ["ougi.jsonc", "ougi.json", "opencode.jsonc", "opencode.json"]
+}
+
 export const files = Effect.fn("ConfigPaths.projectFiles")(function* (
   name: string,
   directory: string,
@@ -16,7 +23,7 @@ export const files = Effect.fn("ConfigPaths.projectFiles")(function* (
 ) {
   const afs = yield* AppFileSystem.Service
   return (yield* afs.up({
-    targets: [`${name}.jsonc`, `${name}.json`],
+    targets: names(name),
     start: directory,
     stop: worktree,
   })).toReversed()
@@ -28,13 +35,13 @@ export const directories = Effect.fn("ConfigPaths.directories")(function* (direc
     Global.Path.config,
     ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG
       ? yield* afs.up({
-          targets: [".opencode"],
+          targets: [...LOCAL_CONFIG_DIRS],
           start: directory,
           stop: worktree,
         })
       : []),
     ...(yield* afs.up({
-      targets: [".opencode"],
+      targets: [...LOCAL_CONFIG_DIRS],
       start: Global.Path.home,
       stop: Global.Path.home,
     })),
@@ -43,7 +50,13 @@ export const directories = Effect.fn("ConfigPaths.directories")(function* (direc
 })
 
 export function fileInDirectory(dir: string, name: string) {
-  return [path.join(dir, `${name}.json`), path.join(dir, `${name}.jsonc`)]
+  if (name !== "opencode") return [path.join(dir, `${name}.json`), path.join(dir, `${name}.jsonc`)]
+  return [
+    path.join(dir, "ougi.json"),
+    path.join(dir, "ougi.jsonc"),
+    path.join(dir, "opencode.json"),
+    path.join(dir, "opencode.jsonc"),
+  ]
 }
 
 /** Read a config file, returning undefined for missing files and throwing JsonError for other failures. */

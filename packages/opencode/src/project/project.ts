@@ -110,6 +110,10 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Project") {}
 
+function markerPath(pathSvc: Path.Path, dir: string) {
+  return pathSvc.join(dir, "ougi")
+}
+
 type GitResult = { code: number; text: string; stderr: string }
 
 export const layer: Layer.Layer<
@@ -165,11 +169,15 @@ export const layer: Layer.Layer<
     const scope = yield* Scope.Scope
 
     const readCachedProjectId = Effect.fnUntraced(function* (dir: string) {
-      return yield* fs.readFileString(pathSvc.join(dir, "opencode")).pipe(
-        Effect.map((x) => x.trim()),
-        Effect.map(ProjectID.make),
-        Effect.catch(() => Effect.void),
-      )
+      for (const file of [markerPath(pathSvc, dir), pathSvc.join(dir, "opencode")]) {
+        const value = yield* fs.readFileString(file).pipe(
+          Effect.map((x) => x.trim()),
+          Effect.map(ProjectID.make),
+          Effect.catch(() => Effect.succeed(undefined)),
+        )
+        if (value) return value
+      }
+      return yield* Effect.succeed(undefined)
     })
 
     const fromDirectory = Effect.fn("Project.fromDirectory")(function* (directory: string) {
@@ -232,7 +240,7 @@ export const layer: Layer.Layer<
 
           id = roots[0] ? ProjectID.make(roots[0]) : undefined
           if (id) {
-            yield* fs.writeFileString(pathSvc.join(common, "opencode"), id).pipe(Effect.ignore)
+            yield* fs.writeFileString(markerPath(pathSvc, common), id).pipe(Effect.ignore)
           }
         }
 

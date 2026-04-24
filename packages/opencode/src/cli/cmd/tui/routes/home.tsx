@@ -1,6 +1,5 @@
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { createEffect, createSignal } from "solid-js"
-import { Logo } from "../component/logo"
+import { For, createEffect, createSignal } from "solid-js"
 import { useProject } from "../context/project"
 import { useSync } from "../context/sync"
 import { Toast } from "../ui/toast"
@@ -9,6 +8,18 @@ import { useRouteData } from "@tui/context/route"
 import { usePromptRef } from "../context/prompt"
 import { useLocal } from "../context/local"
 import { TuiPluginRuntime } from "../plugin"
+import { Branding } from "../branding"
+import { useTheme } from "../context/theme"
+
+const logoLines = [
+  "                                ▄▄                               ▄▄          ",
+  "                                ▀▀                               ██          ",
+  " ▄█████▄   ██   ██   ▄██████   ███       ▄█████▄  ▄█████▄   ▄██████   ▄█████▄",
+  " ██   ██   ██   ██   ██   ██    ██       ██   ▀▀  ██   ██   ██   ██   ██▄▄▄██",
+  " ██▄▄▄██   ██▄▄▄██   ██▄▄▄██   ▄██▄      ██▄▄▄██  ██▄▄▄██   ██▄▄▄██   ██▄▄▄▄ ",
+  "  ▀▀▀▀▀     ▀▀▀▀▀▀    ▀▀▀▀██   ▀▀▀▀       ▀▀▀▀▀    ▀▀▀▀▀     ▀▀▀▀▀▀    ▀▀▀▀▀ ",
+  "                      █████▀                                                 ",
+]
 
 let once = false
 const placeholder = {
@@ -24,6 +35,7 @@ export function Home() {
   const [ref, setRef] = createSignal<PromptRef | undefined>()
   const args = useArgs()
   const local = useLocal()
+  const { theme } = useTheme()
   let sent = false
 
   const bind = (r: PromptRef | undefined) => {
@@ -56,10 +68,20 @@ export function Home() {
     <>
       <box flexGrow={1} alignItems="center" paddingLeft={2} paddingRight={2}>
         <box flexGrow={1} minHeight={0} />
-        <box height={4} minHeight={0} flexShrink={1} />
-        <box flexShrink={0}>
+        <box height={2} minHeight={0} flexShrink={1} />
+        <box flexShrink={0} alignItems="center" gap={0}>
           <TuiPluginRuntime.Slot name="home_logo" mode="replace">
-            <Logo />
+            <box flexDirection="column" alignItems="center" gap={0}>
+              <text fg={theme.accent} attributes={1}>{logoLines[0]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[1]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[2]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[3]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[4]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[5]}</text>
+              <text fg={theme.accent} attributes={1}>{logoLines[6]}</text>
+              <box height={1} />
+              <text fg={theme.textMuted}>{Branding.product.tagline}</text>
+            </box>
           </TuiPluginRuntime.Slot>
         </box>
         <box height={1} minHeight={0} flexShrink={1} />

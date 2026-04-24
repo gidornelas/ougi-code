@@ -87,6 +87,7 @@ import { useTuiConfig } from "../../context/tui-config"
 import { getScrollAcceleration } from "../../util/scroll"
 import { TuiPluginRuntime } from "../../plugin"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
+import { Branding } from "../../branding"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
 
@@ -188,7 +189,7 @@ export function Session() {
       const result = await sdk.client.session.get({ sessionID }, { throwOnError: true })
       if (!result.data) {
         toast.show({
-          message: `Session not found: ${sessionID}`,
+          message: `session not found: ${sessionID}`,
           variant: "error",
           duration: 5000,
         })
@@ -273,18 +274,17 @@ export function Session() {
 
   createEffect(() => {
     const title = Locale.truncate(session()?.title ?? "", 50)
-    const pad = (text: string) => text.padEnd(10, " ")
-    const weak = (text: string) => UI.Style.TEXT_DIM + pad(text) + UI.Style.TEXT_NORMAL
-    const logo = UI.logo("  ").split(/\r?\n/)
+    const agent = local.agent.current()
+    const model = local.model.parsed()
+    const meta = [agent?.name, model.model, local.model.variant.current()].filter(Boolean).join(" · ")
     return exit.message.set(
       [
-        `${logo[0] ?? ""}`,
-        `${logo[1] ?? ""}`,
-        `${logo[2] ?? ""}`,
-        `${logo[3] ?? ""}`,
         ``,
-        `  ${weak("Session")}${UI.Style.TEXT_NORMAL_BOLD}${title}${UI.Style.TEXT_NORMAL}`,
-        `  ${weak("Continue")}${UI.Style.TEXT_NORMAL_BOLD}opencode -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
+        `  ${UI.Style.TEXT_NORMAL_BOLD}${Branding.product.name}${UI.Style.TEXT_NORMAL}`,
+        `  ${meta}`,
+        ``,
+        `  ${UI.Style.TEXT_DIM}session${UI.Style.TEXT_NORMAL}  ${title}`,
+        `  ${UI.Style.TEXT_DIM}resume${UI.Style.TEXT_NORMAL}  ${Branding.product.cliName} -s ${session()?.id}`,
         ``,
       ].join("\n"),
     )
@@ -401,8 +401,8 @@ export function Session() {
       onSelect: async (dialog) => {
         const copy = (url: string) =>
           Clipboard.copy(url)
-            .then(() => toast.show({ message: "Share URL copied to clipboard!", variant: "success" }))
-            .catch(() => toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }))
+            .then(() => toast.show({ message: Branding.copy.toast.shareCopied, variant: "success" }))
+            .catch(() => toast.show({ message: Branding.copy.toast.shareFailed, variant: "error" }))
         const url = session()?.share?.url
         if (url) {
           await copy(url)
@@ -500,7 +500,7 @@ export function Session() {
         if (!selectedModel) {
           toast.show({
             variant: "warning",
-            message: "Connect a provider to summarize this session",
+            message: "connect a provider to summarize",
             duration: 3000,
           })
           return
@@ -527,7 +527,7 @@ export function Session() {
           .unshare({
             sessionID: route.sessionID,
           })
-          .then(() => toast.show({ message: "Session unshared successfully", variant: "success" }))
+          .then(() => toast.show({ message: Branding.copy.toast.unshared, variant: "success" }))
           .catch((error) => {
             toast.show({
               message: error instanceof Error ? error.message : "Failed to unshare session",
@@ -829,7 +829,7 @@ export function Session() {
           (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
         )
         if (!lastAssistantMessage) {
-          toast.show({ message: "No assistant messages found", variant: "error" })
+          toast.show({ message: Branding.copy.toast.noAssistantMessages, variant: "error" })
           dialog.clear()
           return
         }
@@ -837,7 +837,7 @@ export function Session() {
         const parts = sync.data.part[lastAssistantMessage.id] ?? []
         const textParts = parts.filter((part) => part.type === "text")
         if (textParts.length === 0) {
-          toast.show({ message: "No text parts found in last assistant message", variant: "error" })
+          toast.show({ message: Branding.copy.toast.noTextParts, variant: "error" })
           dialog.clear()
           return
         }
@@ -848,7 +848,7 @@ export function Session() {
           .trim()
         if (!text) {
           toast.show({
-            message: "No text content found in last assistant message",
+            message: Branding.copy.toast.noTextParts,
             variant: "error",
           })
           dialog.clear()
@@ -856,8 +856,8 @@ export function Session() {
         }
 
         Clipboard.copy(text)
-          .then(() => toast.show({ message: "Message copied to clipboard!", variant: "success" }))
-          .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+          .then(() => toast.show({ message: Branding.copy.toast.copiedToClipboard, variant: "success" }))
+          .catch(() => toast.show({ message: "copy failed", variant: "error" }))
         dialog.clear()
       },
     },
@@ -884,9 +884,9 @@ export function Session() {
             },
           )
           await Clipboard.copy(transcript)
-          toast.show({ message: "Session transcript copied to clipboard!", variant: "success" })
+          toast.show({ message: "transcript copied", variant: "success" })
         } catch {
-          toast.show({ message: "Failed to copy session transcript", variant: "error" })
+          toast.show({ message: "transcript copy failed", variant: "error" })
         }
         dialog.clear()
       },
@@ -948,7 +948,7 @@ export function Session() {
             toast.show({ message: `Session exported to ${filename}`, variant: "success" })
           }
         } catch {
-          toast.show({ message: "Failed to export session", variant: "error" })
+          toast.show({ message: Branding.copy.toast.exportFailed, variant: "error" })
         }
         dialog.clear()
       },

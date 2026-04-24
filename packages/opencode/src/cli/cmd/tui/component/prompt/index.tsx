@@ -1,5 +1,5 @@
-import { BoxRenderable, RGBA, TextareaRenderable, MouseEvent, PasteEvent, decodePasteBytes } from "@opentui/core"
-import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
+import { BoxRenderable, RGBA, TextareaRenderable, MouseEvent, PasteEvent, decodePasteBytes, TextAttributes } from "@opentui/core"
+import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match, For } from "solid-js"
 import "opentui-spinner/solid"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -42,6 +42,8 @@ import { DialogSkill } from "../dialog-skill"
 import { DialogWorkspaceCreate, restoreWorkspaceSession } from "../dialog-workspace-create"
 import { DialogWorkspaceUnavailable } from "../dialog-workspace-unavailable"
 import { useArgs } from "@tui/context/args"
+import { Branding } from "../../branding"
+import { applyStack, getActiveStack, loadStacks } from "../dialog-stack"
 
 export type PromptProps = {
   sessionID?: string
@@ -110,13 +112,44 @@ export function Prompt(props: PromptProps) {
   const list = createMemo(() => props.placeholders?.normal ?? [])
   const shell = createMemo(() => props.placeholders?.shell ?? [])
   const [auto, setAuto] = createSignal<AutocompleteRef>()
+  const [stackStateVersion, setStackStateVersion] = createSignal(0)
   const currentProviderLabel = createMemo(() => local.model.parsed().provider)
   const hasRightContent = createMemo(() => Boolean(props.right))
+  const isPresetAgent = createMemo(() => local.agent.current()?.name === "preset")
+
+  const availableStacks = createMemo(() => {
+    stackStateVersion()
+    return loadStacks()
+  })
+  const activeStack = createMemo(() => {
+    stackStateVersion()
+    return getActiveStack()
+  })
+
+  async function applyStackFromPrompt(stackName: string) {
+    const item = availableStacks().find((stack) => stack.name === stackName)
+    if (!item) return
+    if (stackName === activeStack()) {
+      toast.show({
+        variant: "info",
+        message: `Stack ${stackName} is already active`,
+      })
+      return
+    }
+    await applyStack(item.name, item.preset)
+    await sdk.client.instance.dispose()
+    await sync.bootstrap({ fatal: false })
+    setStackStateVersion((value) => value + 1)
+    toast.show({
+      variant: "success",
+      message: `Stack ${item.name} applied`,
+    })
+  }
 
   function promptModelWarning() {
     toast.show({
       variant: "warning",
-      message: "Connect a provider to send prompts",
+      message: Branding.copy.toast.connectProvider,
       duration: 3000,
     })
     if (sync.data.provider.length === 0) {
@@ -1055,6 +1088,11 @@ export function Prompt(props: PromptProps) {
                 }
                 if (store.mode === "normal") autocomplete.onKeyDown(e)
                 if (!autocomplete.visible) {
+                  if (keybind.match("agent_cycle", e)) {
+                    local.agent.move(1)
+                    e.preventDefault()
+                    return
+                  }
                   if (
                     (keybind.match("history_previous", e) && input.cursorOffset === 0) ||
                     (keybind.match("history_next", e) && input.cursorOffset === input.plainText.length)
@@ -1185,34 +1223,44 @@ export function Prompt(props: PromptProps) {
             />
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
               <box flexDirection="row" gap={1}>
-                <Show when={local.agent.current()} fallback={<box height={1} />}>
-                  {(agent) => (
-                    <>
-                      <text fg={fadeColor(highlight(), agentMetaAlpha())}>
-                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
-                      </text>
-                      <Show when={store.mode === "normal"}>
-                        <box flexDirection="row" gap={1}>
-                          <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>·</text>
-                          <text
-                            flexShrink={0}
-                            fg={fadeColor(keybind.leader ? theme.textMuted : theme.text, modelMetaAlpha())}
-                          >
-                            {local.model.parsed().model}
-                          </text>
-                          <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>{currentProviderLabel()}</text>
-                          <Show when={showVariant()}>
-                            <text fg={fadeColor(theme.textMuted, variantMetaAlpha())}>·</text>
-                            <text>
-                              <span style={{ fg: fadeColor(theme.warning, variantMetaAlpha()), bold: true }}>
-                                {local.model.variant.current()}
-                              </span>
+                <Show when={local.agent.current() && store.mode !== "shell"} fallback={<box height={1} />}>
+                  <box flexDirection="row" gap={2} flexWrap="wrap">
+                    <text fg={theme.accent} attributes={TextAttributes.BOLD}>
+                      <span style={{ fg: local.agent.color(local.agent.current()?.name ?? "preset") }}>
+                        [{local.agent.current()?.name}]
+                      </span>
+                    </text>
+                    <Show when={isPresetAgent() && availableStacks().length > 0}>
+                      <For each={availableStacks()}>
+                        {(stack) => {
+                          const isActive = stack.name === activeStack()
+                          return (
+                            <text
+                              fg={isActive ? theme.success : theme.textMuted}
+                              attributes={isActive ? TextAttributes.BOLD : undefined}
+                              onMouseUp={() => {
+                                void applyStackFromPrompt(stack.name)
+                              }}
+                            >
+                              [{stack.name}]
                             </text>
-                          </Show>
-                        </box>
+                          )
+                        }}
+                      </For>
+                    </Show>
+                    <Show when={!isPresetAgent()}>
+                      <text fg={theme.textMuted}>·</text>
+                      <text fg={theme.text}>{local.model.parsed().model}</text>
+                      <text fg={theme.textMuted}>{currentProviderLabel()}</text>
+                      <Show when={showVariant()}>
+                        <text fg={theme.textMuted}>·</text>
+                        <text fg={theme.warning} attributes={TextAttributes.BOLD}>{local.model.variant.current()}</text>
                       </Show>
-                    </>
-                  )}
+                    </Show>
+                  </box>
+                </Show>
+                <Show when={store.mode === "shell"}>
+                  <text fg={theme.secondary}>shell</text>
                 </Show>
               </box>
               <Show when={hasRightContent()}>
@@ -1325,7 +1373,7 @@ export function Prompt(props: PromptProps) {
               <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                 esc{" "}
                 <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                  {store.interrupt > 0 ? "again to interrupt" : "interrupt"}
+                  {store.interrupt > 0 ? "again to interrupt" : Branding.copy.prompt.interrupt}
                 </span>
               </text>
             </box>
@@ -1343,18 +1391,22 @@ export function Prompt(props: PromptProps) {
                       )}
                     </Match>
                     <Match when={true}>
-                      <text fg={theme.text}>
-                        {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>agents</span>
-                      </text>
+                      <box gap={2} flexDirection="row">
+                        <text fg={theme.text}>
+                          {keybind.print("agent_cycle")}{" "}
+                          <span style={{ fg: theme.textMuted }}>{Branding.copy.prompt.agents}</span>
+                        </text>
+                        <text fg={theme.text}>
+                          {keybind.print("command_list")}{" "}
+                          <span style={{ fg: theme.textMuted }}>{Branding.copy.prompt.commands}</span>
+                        </text>
+                      </box>
                     </Match>
                   </Switch>
-                  <text fg={theme.text}>
-                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
+                    esc <span style={{ fg: theme.textMuted }}>{Branding.copy.prompt.exitShell}</span>
                   </text>
                 </Match>
               </Switch>

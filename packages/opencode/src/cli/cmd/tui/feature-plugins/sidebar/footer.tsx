@@ -1,6 +1,7 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, Show } from "solid-js"
 import { Global } from "@/global"
+import { Branding } from "../../branding"
 
 const id = "internal:sidebar-footer"
 
@@ -42,18 +43,18 @@ function View(props: { api: TuiPluginApi }) {
           <box flexGrow={1} gap={1}>
             <box flexDirection="row" justifyContent="space-between">
               <text fg={theme().text}>
-                <b>Getting started</b>
+                <b>{Branding.copy.sidebar.gettingStarted}</b>
               </text>
               <text fg={theme().textMuted} onMouseDown={() => props.api.kv.set("dismissed_getting_started", true)}>
-                ✕
+                {Branding.copy.sidebar.gettingStartedDismiss}
               </text>
             </box>
-            <text fg={theme().textMuted}>OpenCode includes free models so you can start immediately.</text>
+            <text fg={theme().textMuted}>{Branding.product.shortName} {Branding.copy.sidebar.ready}</text>
             <text fg={theme().textMuted}>
               Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
             </text>
             <box flexDirection="row" gap={1} justifyContent="space-between">
-              <text fg={theme().text}>Connect provider</text>
+              <text fg={theme().text}>{Branding.copy.sidebar.connectProvider}</text>
               <text fg={theme().textMuted}>/connect</text>
             </box>
           </box>
@@ -64,9 +65,9 @@ function View(props: { api: TuiPluginApi }) {
         <span style={{ fg: theme().text }}>{path().name}</span>
       </text>
       <text fg={theme().textMuted}>
-        <span style={{ fg: theme().success }}>•</span> <b>Open</b>
+        <span style={{ fg: theme().success }}>•</span>{" "}
         <span style={{ fg: theme().text }}>
-          <b>Code</b>
+          <b>{Branding.product.name}</b>
         </span>{" "}
         <span>{props.api.app.version}</span>
       </text>

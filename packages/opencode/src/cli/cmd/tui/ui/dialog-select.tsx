@@ -38,12 +38,15 @@ export interface DialogSelectOption<T = any> {
   value: T
   description?: string
   footer?: JSX.Element | string
+  details?: JSX.Element
   category?: string
   categoryView?: JSX.Element
   disabled?: boolean
   bg?: RGBA
   gutter?: JSX.Element
   margin?: JSX.Element
+  lines?: number
+  layout?: "inline" | "stacked"
   onSelect?: (ctx: DialogContext) => void
 }
 
@@ -134,7 +137,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       if (!category) return acc
       return acc + (i > 0 ? 2 : 1)
     }, 0)
-    return flat().length + headers
+    return flat().reduce((acc, option) => acc + (option.lines ?? 1), 0) + headers
   })
 
   const dimensions = useTerminalDimensions()
@@ -349,9 +352,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           title={option.title}
                           footer={flatten() ? (option.category ?? option.footer) : option.footer}
                           description={option.description !== category ? option.description : undefined}
+                          details={option.details}
                           active={active()}
                           current={current()}
                           gutter={option.gutter}
+                          layout={option.layout}
                         />
                       </box>
                     )
@@ -407,11 +412,55 @@ function Option(props: {
   active?: boolean
   current?: boolean
   footer?: JSX.Element | string
+  details?: JSX.Element
   gutter?: JSX.Element
+  layout?: "inline" | "stacked"
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
+  const stacked = createMemo(() => props.layout === "stacked")
+
+  if (stacked())
+    return (
+      <>
+        <Show when={props.current}>
+          <text flexShrink={0} fg={props.active ? fg : props.current ? theme.primary : theme.text} marginRight={0}>
+            *
+          </text>
+        </Show>
+        <Show when={!props.current && props.gutter}>
+          <box flexShrink={0} marginRight={0}>
+            {props.gutter}
+          </box>
+        </Show>
+        <box flexGrow={1} flexDirection="column" paddingLeft={3} paddingTop={1} paddingBottom={1}>
+          <text
+            fg={props.active ? fg : props.current ? theme.primary : theme.text}
+            attributes={props.active ? TextAttributes.BOLD : undefined}
+            wrapMode="word"
+          >
+            {props.title}
+          </text>
+          <Show when={props.description}>
+            <text fg={props.active ? fg : theme.textMuted} wrapMode="word">
+              {props.description}
+            </text>
+          </Show>
+          <Show when={typeof props.footer === "string"}>
+            <text fg={props.active ? fg : theme.textMuted} wrapMode="word">
+              {props.footer as string}
+            </text>
+          </Show>
+          <Show when={props.footer && typeof props.footer !== "string"}>
+            <box>{props.footer as JSX.Element}</box>
+          </Show>
+          <Show when={props.details}>
+            <box>{props.details}</box>
+          </Show>
+        </box>
+      </>
+    )
 
   return (
     <>

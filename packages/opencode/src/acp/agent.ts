@@ -235,7 +235,7 @@ export class Agent implements ACPAgent {
               return
             }
 
-            if (res.outcome.optionId !== "reject" && permission.permission == "edit") {
+            if (res.outcome.optionId !== "reject" && permission.permission === "edit") {
               const metadata = permission.metadata || {}
               const filepath = typeof metadata["filepath"] === "string" ? metadata["filepath"] : ""
               const diff = typeof metadata["diff"] === "string" ? metadata["diff"] : ""
@@ -339,118 +339,11 @@ export class Agent implements ACPAgent {
                 })
               return
 
-            case "completed": {
-              this.toolStarts.delete(part.callID)
-              this.bashSnapshots.delete(part.callID)
-              const kind = toToolKind(part.tool)
-              const content: ToolCallContent[] = [
-                {
-                  type: "content",
-                  content: {
-                    type: "text",
-                    text: part.state.output,
-                  },
-                },
-              ]
-
-              if (kind === "edit") {
-                const input = part.state.input
-                const filePath = typeof input["filePath"] === "string" ? input["filePath"] : ""
-                const oldText = typeof input["oldString"] === "string" ? input["oldString"] : ""
-                const newText =
-                  typeof input["newString"] === "string"
-                    ? input["newString"]
-                    : typeof input["content"] === "string"
-                      ? input["content"]
-                      : ""
-                content.push({
-                  type: "diff",
-                  path: filePath,
-                  oldText,
-                  newText,
-                })
-              }
-
-              if (part.tool === "todowrite") {
-                const parsedTodos = z.array(Todo.Info.zod).safeParse(JSON.parse(part.state.output))
-                if (parsedTodos.success) {
-                  await this.connection
-                    .sessionUpdate({
-                      sessionId,
-                      update: {
-                        sessionUpdate: "plan",
-                        entries: parsedTodos.data.map((todo) => {
-                          const status: PlanEntry["status"] =
-                            todo.status === "cancelled" ? "completed" : (todo.status as PlanEntry["status"])
-                          return {
-                            priority: "medium",
-                            status,
-                            content: todo.content,
-                          }
-                        }),
-                      },
-                    })
-                    .catch((error) => {
-                      log.error("failed to send session update for todo", { error })
-                    })
-                } else {
-                  log.error("failed to parse todo output", { error: parsedTodos.error })
-                }
-              }
-
-              await this.connection
-                .sessionUpdate({
-                  sessionId,
-                  update: {
-                    sessionUpdate: "tool_call_update",
-                    toolCallId: part.callID,
-                    status: "completed",
-                    kind,
-                    content,
-                    title: part.state.title,
-                    rawInput: part.state.input,
-                    rawOutput: {
-                      output: part.state.output,
-                      metadata: part.state.metadata,
-                    },
-                  },
-                })
-                .catch((error) => {
-                  log.error("failed to send tool completed to ACP", { error })
-                })
+            case "completed":
+              await this.emitToolCompleted(sessionId, part)
               return
-            }
             case "error":
-              this.toolStarts.delete(part.callID)
-              this.bashSnapshots.delete(part.callID)
-              await this.connection
-                .sessionUpdate({
-                  sessionId,
-                  update: {
-                    sessionUpdate: "tool_call_update",
-                    toolCallId: part.callID,
-                    status: "failed",
-                    kind: toToolKind(part.tool),
-                    title: part.tool,
-                    rawInput: part.state.input,
-                    content: [
-                      {
-                        type: "content",
-                        content: {
-                          type: "text",
-                          text: part.state.error,
-                        },
-                      },
-                    ],
-                    rawOutput: {
-                      error: part.state.error,
-                      metadata: part.state.metadata,
-                    },
-                  },
-                })
-                .catch((error) => {
-                  log.error("failed to send tool error to ACP", { error })
-                })
+              await this.emitToolError(sessionId, part)
               return
           }
         }
@@ -534,18 +427,18 @@ export class Agent implements ACPAgent {
     log.info("initialize", { protocolVersion: params.protocolVersion })
 
     const authMethod: AuthMethod = {
-      description: "Run `opencode auth login` in the terminal",
-      name: "Login with opencode",
-      id: "opencode-login",
+      description: "Run `ougi auth login` in the terminal",
+      name: "Login with ougi",
+      id: "ougi-login",
     }
 
     // If client supports terminal-auth capability, use that instead.
     if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
       authMethod._meta = {
         "terminal-auth": {
-          command: "opencode",
+          command: "ougi",
           args: ["auth", "login"],
-          label: "OpenCode Login",
+          label: "Ougi Login",
         },
       }
     }
@@ -570,7 +463,7 @@ export class Agent implements ACPAgent {
       },
       authMethods: [authMethod],
       agentInfo: {
-        name: "OpenCode",
+        name: "Ougi",
         version: InstallationVersion,
       },
     }
@@ -605,13 +498,7 @@ export class Agent implements ACPAgent {
         _meta: load._meta,
       }
     } catch (e) {
-      const error = MessageV2.fromError(e, {
-        providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
-      })
-      if (LoadAPIKeyError.isInstance(error)) {
-        throw RequestError.authRequired()
-      }
-      throw e
+      this.handleError(e)
     }
   }
 
@@ -675,13 +562,7 @@ export class Agent implements ACPAgent {
 
       return result
     } catch (e) {
-      const error = MessageV2.fromError(e, {
-        providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
-      })
-      if (LoadAPIKeyError.isInstance(error)) {
-        throw RequestError.authRequired()
-      }
-      throw e
+      this.handleError(e)
     }
   }
 
@@ -720,13 +601,7 @@ export class Agent implements ACPAgent {
       if (next) response.nextCursor = next
       return response
     } catch (e) {
-      const error = MessageV2.fromError(e, {
-        providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
-      })
-      if (LoadAPIKeyError.isInstance(error)) {
-        throw RequestError.authRequired()
-      }
-      throw e
+      this.handleError(e)
     }
   }
 
@@ -785,13 +660,7 @@ export class Agent implements ACPAgent {
 
       return mode
     } catch (e) {
-      const error = MessageV2.fromError(e, {
-        providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
-      })
-      if (LoadAPIKeyError.isInstance(error)) {
-        throw RequestError.authRequired()
-      }
-      throw e
+      this.handleError(e)
     }
   }
 
@@ -816,13 +685,7 @@ export class Agent implements ACPAgent {
 
       return result
     } catch (e) {
-      const error = MessageV2.fromError(e, {
-        providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
-      })
-      if (LoadAPIKeyError.isInstance(error)) {
-        throw RequestError.authRequired()
-      }
-      throw e
+      this.handleError(e)
     }
   }
 
@@ -869,116 +732,10 @@ export class Agent implements ACPAgent {
               })
             break
           case "completed":
-            this.toolStarts.delete(part.callID)
-            this.bashSnapshots.delete(part.callID)
-            const kind = toToolKind(part.tool)
-            const content: ToolCallContent[] = [
-              {
-                type: "content",
-                content: {
-                  type: "text",
-                  text: part.state.output,
-                },
-              },
-            ]
-
-            if (kind === "edit") {
-              const input = part.state.input
-              const filePath = typeof input["filePath"] === "string" ? input["filePath"] : ""
-              const oldText = typeof input["oldString"] === "string" ? input["oldString"] : ""
-              const newText =
-                typeof input["newString"] === "string"
-                  ? input["newString"]
-                  : typeof input["content"] === "string"
-                    ? input["content"]
-                    : ""
-              content.push({
-                type: "diff",
-                path: filePath,
-                oldText,
-                newText,
-              })
-            }
-
-            if (part.tool === "todowrite") {
-              const parsedTodos = z.array(Todo.Info.zod).safeParse(JSON.parse(part.state.output))
-              if (parsedTodos.success) {
-                await this.connection
-                  .sessionUpdate({
-                    sessionId,
-                    update: {
-                      sessionUpdate: "plan",
-                      entries: parsedTodos.data.map((todo) => {
-                        const status: PlanEntry["status"] =
-                          todo.status === "cancelled" ? "completed" : (todo.status as PlanEntry["status"])
-                        return {
-                          priority: "medium",
-                          status,
-                          content: todo.content,
-                        }
-                      }),
-                    },
-                  })
-                  .catch((err) => {
-                    log.error("failed to send session update for todo", { error: err })
-                  })
-              } else {
-                log.error("failed to parse todo output", { error: parsedTodos.error })
-              }
-            }
-
-            await this.connection
-              .sessionUpdate({
-                sessionId,
-                update: {
-                  sessionUpdate: "tool_call_update",
-                  toolCallId: part.callID,
-                  status: "completed",
-                  kind,
-                  content,
-                  title: part.state.title,
-                  rawInput: part.state.input,
-                  rawOutput: {
-                    output: part.state.output,
-                    metadata: part.state.metadata,
-                  },
-                },
-              })
-              .catch((err) => {
-                log.error("failed to send tool completed to ACP", { error: err })
-              })
+            await this.emitToolCompleted(sessionId, part)
             break
           case "error":
-            this.toolStarts.delete(part.callID)
-            this.bashSnapshots.delete(part.callID)
-            await this.connection
-              .sessionUpdate({
-                sessionId,
-                update: {
-                  sessionUpdate: "tool_call_update",
-                  toolCallId: part.callID,
-                  status: "failed",
-                  kind: toToolKind(part.tool),
-                  title: part.tool,
-                  rawInput: part.state.input,
-                  content: [
-                    {
-                      type: "content",
-                      content: {
-                        type: "text",
-                        text: part.state.error,
-                      },
-                    },
-                  ],
-                  rawOutput: {
-                    error: part.state.error,
-                    metadata: part.state.metadata,
-                  },
-                },
-              })
-              .catch((err) => {
-                log.error("failed to send tool error to ACP", { error: err })
-              })
+            await this.emitToolError(sessionId, part)
             break
         }
       } else if (part.type === "text") {
@@ -1102,6 +859,132 @@ export class Agent implements ACPAgent {
         }
       }
     }
+  }
+
+  private handleError(e: unknown): never {
+    const error = MessageV2.fromError(e, {
+      providerID: ProviderID.make(this.config.defaultModel?.providerID ?? "unknown"),
+    })
+    if (LoadAPIKeyError.isInstance(error)) {
+      throw RequestError.authRequired()
+    }
+    throw e
+  }
+
+  private async emitToolCompleted(sessionId: string, part: ToolPart) {
+    if (part.state.status !== "completed") return
+    this.toolStarts.delete(part.callID)
+    this.bashSnapshots.delete(part.callID)
+    const kind = toToolKind(part.tool)
+    const content: ToolCallContent[] = [
+      {
+        type: "content",
+        content: {
+          type: "text",
+          text: part.state.output,
+        },
+      },
+    ]
+
+    if (kind === "edit") {
+      const input = part.state.input
+      const filePath = typeof input["filePath"] === "string" ? input["filePath"] : ""
+      const oldText = typeof input["oldString"] === "string" ? input["oldString"] : ""
+      const newText =
+        typeof input["newString"] === "string"
+          ? input["newString"]
+          : typeof input["content"] === "string"
+            ? input["content"]
+            : ""
+      content.push({
+        type: "diff",
+        path: filePath,
+        oldText,
+        newText,
+      })
+    }
+
+    if (part.tool === "todowrite") {
+      const parsedTodos = z.array(Todo.Info.zod).safeParse(JSON.parse(part.state.output))
+      if (parsedTodos.success) {
+        await this.connection
+          .sessionUpdate({
+            sessionId,
+            update: {
+              sessionUpdate: "plan",
+              entries: parsedTodos.data.map((todo) => {
+                const status: PlanEntry["status"] =
+                  todo.status === "cancelled" ? "completed" : (todo.status as PlanEntry["status"])
+                return {
+                  priority: "medium",
+                  status,
+                  content: todo.content,
+                }
+              }),
+            },
+          })
+          .catch((error) => {
+            log.error("failed to send session update for todo", { error })
+          })
+      } else {
+        log.error("failed to parse todo output", { error: parsedTodos.error })
+      }
+    }
+
+    await this.connection
+      .sessionUpdate({
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: part.callID,
+          status: "completed",
+          kind,
+          content,
+          title: part.state.title,
+          rawInput: part.state.input,
+          rawOutput: {
+            output: part.state.output,
+            metadata: part.state.metadata,
+          },
+        },
+      })
+      .catch((error) => {
+        log.error("failed to send tool completed to ACP", { error })
+      })
+  }
+
+  private async emitToolError(sessionId: string, part: ToolPart) {
+    if (part.state.status !== "error") return
+    this.toolStarts.delete(part.callID)
+    this.bashSnapshots.delete(part.callID)
+    await this.connection
+      .sessionUpdate({
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: part.callID,
+          status: "failed",
+          kind: toToolKind(part.tool),
+          title: part.tool,
+          rawInput: part.state.input,
+          content: [
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: part.state.error,
+              },
+            },
+          ],
+          rawOutput: {
+            error: part.state.error,
+            metadata: part.state.metadata,
+          },
+        },
+      })
+      .catch((error) => {
+        log.error("failed to send tool error to ACP", { error })
+      })
   }
 
   private bashOutput(part: ToolPart) {
@@ -1390,7 +1273,7 @@ export class Agent implements ACPAgent {
               filename,
               mime: part.mimeType,
             })
-          } else if (part.uri && part.uri.startsWith("http:")) {
+          } else if (part.uri && (part.uri.startsWith("http://") || part.uri.startsWith("https://"))) {
             parts.push({
               type: "file",
               url: part.uri,

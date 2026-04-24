@@ -49,13 +49,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       })
       const { theme } = useTheme()
       const colors = createMemo(() => [
-        theme.secondary,
-        theme.accent,
+        RGBA.fromHex("#7CC7C4"),
+        RGBA.fromHex("#69BFD8"),
         theme.success,
-        theme.warning,
+        RGBA.fromHex("#8ACFD0"),
         theme.primary,
-        theme.error,
         theme.info,
+        theme.secondary,
       ])
       return {
         list() {
@@ -139,6 +139,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         state.pending = false
         void Filesystem.writeJson(filePath, {
+          model: modelStore.model,
           recent: modelStore.recent,
           favorite: modelStore.favorite,
           variant: modelStore.variant,
@@ -147,6 +148,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       Filesystem.readJson(filePath)
         .then((x: any) => {
+          if (typeof x.model === "object" && x.model !== null) setModelStore("model", x.model)
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
@@ -213,6 +215,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         get ready() {
           return modelStore.ready
         },
+        override(agentName: string) {
+          return modelStore.model[agentName]
+        },
+        seed(agentName: string, next: { providerID: string; modelID: string }) {
+          setModelStore("model", agentName, next)
+          save()
+        },
         recent() {
           return modelStore.recent
         },
@@ -250,6 +259,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const a = agent.current()
           if (!a) return
           setModelStore("model", a.name, { ...val })
+          save()
         },
         cycleFavorite(direction: 1 | -1) {
           const favorites = modelStore.favorite.filter((item) => isModelValid(item))
@@ -304,10 +314,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               if (uniq.length > 10) uniq.pop()
               setModelStore(
                 "recent",
-                uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
-              )
-              save()
+                  uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+                )
             }
+            save()
           })
         },
         toggleFavorite(model: { providerID: string; modelID: string }) {
@@ -401,19 +411,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     createEffect(() => {
       const value = agent.current()
       if (!value) return
-      if (value.model) {
-        if (isModelValid(value.model))
-          model.set({
-            providerID: value.model.providerID,
-            modelID: value.model.modelID,
-          })
-        else
-          toast.show({
-            variant: "warning",
-            message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.model.modelID} is not valid`,
-            duration: 3000,
-          })
-      }
+      const override = model.override(value.name)
+      if (override && isModelValid(override)) return
+      if (!value.model) return
+      if (!isModelValid(value.model))
+        return toast.show({
+          variant: "warning",
+          message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.model.modelID} is not valid`,
+          duration: 3000,
+        })
+      model.seed(value.name, {
+        providerID: value.model.providerID,
+        modelID: value.model.modelID,
+      })
     })
 
     const result = {
