@@ -45,6 +45,57 @@ import { useArgs } from "@tui/context/args"
 import { Branding } from "../../branding"
 import { applyStack, getActiveStack, loadStacks } from "../dialog-stack"
 
+const intentPatterns: Record<string, string[]> = {
+  build: [
+    "refactor", "refatore", "reorganize", "implement", "implementar", "code", "codar",
+    "write", "escrever", "debug", "fix", "corrigir", "consertar", "bug", "erro",
+    "feature", "funcionalidade", "add", "adicionar", "create", "criar", "update",
+    "atualizar", "change", "mudar", "migrate", "migrar", "optimize", "otimizar",
+    "performance", "desempenho", "test", "teste", "jest", "vitest", "build",
+  ],
+  plan: [
+    "plan", "plano", "estruturar", "structure", "how to", "como fazer", "architecture",
+    "arquitetura", "design pattern", "organize", "organizar", "decompose", "decompor",
+    "strategy", "estratégia", "roadmap", "escopo", "scope", "requirements", "requisitos",
+    "approach", "approaches", "abordagem",
+  ],
+  explore: [
+    "explore", "explorar", "investigate", "investigar", "analyze", "analisar", "what is",
+    "o que é", "understand", "entender", "discover", "descobrir", "find", "encontrar",
+    "where is", "onde está", "search", "buscar", "lookup", "examine", "examinar",
+    "inspect", "inspecionar", "explain", "explique", "document", "documentar",
+  ],
+  reviewer: [
+    "review", "revisar", "evaluate", "avaliar", "verify", "verificar", "check", "checar",
+    "audit", "auditar", "quality", "qualidade", "security", "segurança", "vulnerability",
+    "vulnerabilidade", "assess", "assessar", "validate", "validar", "approve", "aprovar",
+    "critique", "critica",
+  ],
+  "ux-engineer": [
+    "design", "ui", "ux", "interface", "frontend", "css", "style", "estilo", "visual",
+    "layout", "screen", "tela", "component", "componente", "responsive", "responsivo",
+    "accessibility", "acessibilidade", "a11y", "color", "cor", "typography", "tipografia",
+    "spacing", "espaçamento", "theme", "tema", "figma", "mockup", "prototype", "prototipo",
+  ],
+}
+
+function detectIntent(input: string): string | undefined {
+  const lower = input.toLowerCase()
+  let bestAgent: string | undefined
+  let bestScore = 0
+  for (const [agent, patterns] of Object.entries(intentPatterns)) {
+    let score = 0
+    for (const pattern of patterns) {
+      if (lower.includes(pattern)) score++
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestAgent = agent
+    }
+  }
+  return bestScore > 0 ? bestAgent : undefined
+}
+
 export type PromptProps = {
   sessionID?: string
   workspaceID?: string
@@ -116,6 +167,24 @@ export function Prompt(props: PromptProps) {
   const currentProviderLabel = createMemo(() => local.model.parsed().provider)
   const hasRightContent = createMemo(() => Boolean(props.right))
   const isPresetAgent = createMemo(() => local.agent.current()?.name === "preset")
+  const [detectedAgent, setDetectedAgent] = createSignal<string | undefined>()
+
+  // Auto-detect intent from prompt input and suggest agent
+  createEffect(() => {
+    const inputText = store.prompt.input
+    const currentAgent = local.agent.current()?.name
+    const hasExplicitAgent = store.prompt.parts.some((p) => p.type === "agent")
+    if (hasExplicitAgent || store.mode === "shell" || !inputText.trim()) {
+      setDetectedAgent(undefined)
+      return
+    }
+    const detected = detectIntent(inputText)
+    if (detected && detected !== currentAgent) {
+      setDetectedAgent(detected)
+    } else {
+      setDetectedAgent(undefined)
+    }
+  })
 
   const availableStacks = createMemo(() => {
     stackStateVersion()
@@ -670,7 +739,10 @@ export function Prompt(props: PromptProps) {
     if (props.disabled) return false
     if (autocomplete?.visible) return false
     if (!store.prompt.input) return false
-    const agent = local.agent.current()
+    const hasExplicitAgentPart = store.prompt.parts.some((p) => p.type === "agent")
+    const detected = !hasExplicitAgentPart ? detectedAgent() : undefined
+    const effectiveAgentName = detected ?? local.agent.current()?.name ?? "preset"
+    const agent = local.agent.list().find((a) => a.name === effectiveAgentName) ?? local.agent.current()
     if (!agent) return false
     const trimmed = store.prompt.input.trim()
     if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
@@ -1230,6 +1302,17 @@ export function Prompt(props: PromptProps) {
                         [{local.agent.current()?.name}]
                       </span>
                     </text>
+                    <Show when={detectedAgent()}>
+                      {(agentName) => (
+                        <>
+                          <text fg={theme.textMuted}>→</text>
+                          <text fg={local.agent.color(agentName())} attributes={TextAttributes.BOLD}>
+                            [{agentName()}]
+                          </text>
+                          <text fg={theme.textMuted} attributes={TextAttributes.ITALIC}>auto</text>
+                        </>
+                      )}
+                    </Show>
                     <Show when={isPresetAgent() && availableStacks().length > 0}>
                       <For each={availableStacks()}>
                         {(stack) => {
